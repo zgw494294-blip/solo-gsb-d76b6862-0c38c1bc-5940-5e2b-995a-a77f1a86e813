@@ -7,6 +7,8 @@
 - POST /api/export        无冲突时导出 UTF-8 SRT（原样正文）
 - POST /api/typeset/suggest  对字幕正文生成断行排版建议（只算换行，不改其他字符）
 - POST /api/typeset/export   无冲突时导出「排版版」SRT（只写入已接受的换行）
+- POST /api/bilingual/import  在当前源 SRT 上导入译文 SRT，按时间正长度交集配对分组
+- POST /api/bilingual/export  无冲突且无未配对条目时导出双语 SRT
 - POST /api/project/save  由当前工作区构建 .stc 校准工程
 - POST /api/project/load  按指纹把 .stc 工程恢复/迁移到当前 SRT
 """
@@ -17,6 +19,12 @@ from fastapi.responses import HTMLResponse, JSONResponse, PlainTextResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
+from .bilingual import (
+    build_group_text,
+    ensure_full_pairing,
+    pair_subtitles,
+    validate_translation_axis,
+)
 from .mapping import compute_timeline, items_as_dicts
 from .project import (
     ProjectError,
@@ -97,6 +105,18 @@ class TypesetSubtitle(BaseModel):
 
 class TypesetExportRequest(BaseModel):
     subtitles: list[TypesetSubtitle]
+    anchors: list[Anchor] = Field(default_factory=list)
+    locks: list[int] = Field(default_factory=list)
+
+
+class BilingualImportRequest(BaseModel):
+    subtitles: list[Subtitle]
+    content: str
+
+
+class BilingualExportRequest(BaseModel):
+    subtitles: list[Subtitle]
+    translation: list[Subtitle]
     anchors: list[Anchor] = Field(default_factory=list)
     locks: list[int] = Field(default_factory=list)
 
@@ -234,6 +254,96 @@ def typeset_export(req: TypesetExportRequest):
         srt_text,
         media_type="text/plain; charset=utf-8",
         headers={"Content-Disposition": 'attachment; filename="typeset.srt"'},
+    )
+
+
+@app.post("/api/bilingual/import")
+def bilingual_import(req: BilingualImportRequest):
+    """在当前源 SRT 上导入译文 SRT：校验译文时间轴后按正长度交集配对分组。
+
+    译文时间倒挂或正长度重叠时整份拒绝（400，逐条列明原因）；
+    端点相接不算相交。配对只使用两侧原始时间。
+    """
+    if not req.subtitles:
+        raise HTTPException(status_code=400, detail="请先导入源 SRT，再导入译文")
+    try:
+        translation = parse_srt(req.content)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail="译文 SRT 解析失败：" + str(exc)) from exc
+    reasons = validate_translation_axis(translation)
+    if reasons:
+        raise HTTPException(
+            status_code=400,
+            detail={"code": "translation_axis_invalid",
+                    "message": "译文时间轴存在倒挂或重叠，已拒绝导入",
+                    "reasons": reasons},
+        )
+    pairing = pair_subtitles(
+        [s.model_dump() for s in req.subtitles], translation
+    )
+    return {
+        "count": len(translation),
+        "translation": translation,
+        "groups": pairing["groups"],
+        "unpaired_source": pairing["unpaired_source"],
+        "unpaired_translation": pairing["unpaired_translation"],
+        "can_export_bilingual": not (
+            pairing["unpaired_source"] or pairing["unpaired_translation"]
+        ),
+    }
+
+
+@app.post("/api/bilingual/export")
+def bilingual_export(req: BilingualExportRequest):
+    """导出双语 SRT：每组一条，源文 / 译文上下排列。
+
+    - 源字幕当前校准预览存在冲突 → 拒绝；
+    - 译文时间倒挂 / 重叠 → 拒绝；
+    - 任一侧存在未配对条目 → 拒绝；
+    - 组时间取组内源字幕当前预览时间的最早开始 / 最晚结束
+      （译文时间只参与配对，不参与时间轴）。
+    """
+    if not req.subtitles:
+        raise HTTPException(status_code=400, detail="没有可导出的字幕")
+    items, conflicts = compute_timeline(req.subtitles, req.anchors, req.locks)
+    if conflicts:
+        raise HTTPException(
+            status_code=400,
+            detail="存在冲突，禁止双语导出：" + "；".join(c["message"] for c in conflicts),
+        )
+    tr_dicts = [t.model_dump() for t in req.translation]
+    reasons = validate_translation_axis(tr_dicts)
+    if reasons:
+        raise HTTPException(
+            status_code=400,
+            detail="译文时间轴异常，禁止双语导出：" + "；".join(reasons),
+        )
+    pairing = pair_subtitles([s.model_dump() for s in req.subtitles], tr_dicts)
+    reasons = ensure_full_pairing(pairing)
+    if reasons:
+        raise HTTPException(
+            status_code=400,
+            detail="存在未配对条目，禁止双语导出：" + "；".join(reasons),
+        )
+
+    source_by_id = {s.id: s.model_dump() for s in req.subtitles}
+    tr_by_id = {t["id"]: t for t in tr_dicts}
+    preview_by_id = {it.id: it for it in items}
+    out_items: list[dict] = []
+    for group in pairing["groups"]:
+        mapped = [preview_by_id[sid] for sid in group["source_ids"]]
+        out_items.append(
+            {
+                "start_ms": min(it.new_start_ms for it in mapped),
+                "end_ms": max(it.new_end_ms for it in mapped),
+                "text": build_group_text(group, source_by_id, tr_by_id),
+            }
+        )
+    srt_text = build_srt(out_items)
+    return PlainTextResponse(
+        srt_text,
+        media_type="text/plain; charset=utf-8",
+        headers={"Content-Disposition": 'attachment; filename="bilingual.srt"'},
     )
 
 

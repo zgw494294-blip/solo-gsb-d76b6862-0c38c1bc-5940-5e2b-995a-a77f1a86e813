@@ -99,6 +99,8 @@ function resetWorkspace(content, name) {
   if (window.AuditUI) window.AuditUI.reset();
   // 排版建议/已接受换行同样只对旧 SRT 有意义：一并重置
   if (window.TypesetUI) window.TypesetUI.reset();
+  // 双语配对基于旧源 SRT 的原始时间：重新导入源 SRT 清空旧译文与配对
+  if (window.BilingualUI) window.BilingualUI.reset();
 }
 
 async function importContent(content, name) {
@@ -223,6 +225,8 @@ async function refreshPreview() {
   renderConflicts(data.conflicts);
   $("#export-btn").disabled = !data.can_export;
   if (window.TypesetUI) window.TypesetUI.setCanExport(data.can_export);
+  // 双语分组时间取源字幕当前校准预览；有冲突时同样禁止双语导出
+  if (window.BilingualUI) window.BilingualUI.setPreview(data.items, data.can_export);
 
   // 把当前实时预览时间轴同步给「对白覆盖审计」（锚点/锁定变化后自动重算）
   const textById = {};

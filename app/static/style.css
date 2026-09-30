@@ -525,3 +525,77 @@ td.text .ts-badge {
   cursor: help;
 }
 td.text.typeset { color: #166534; }
+
+/* ================= 双语字幕合成 ================= */
+#bilingual-card h2 small { font-weight: normal; }
+.bl-controls {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin: 4px 0 8px;
+}
+#bl-status.bad { color: var(--danger); font-weight: 600; }
+#bl-status.good { color: var(--ok); font-weight: 600; }
+
+.bl-list { display: flex; flex-direction: column; gap: 8px; margin-top: 10px; }
+.bl-empty {
+  border: 1px dashed var(--border);
+  border-radius: 8px;
+  padding: 18px;
+  text-align: center;
+  color: var(--muted);
+  font-size: 13px;
+}
+.bl-group {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 10px 12px;
+  background: #fcfdff;
+}
+.bl-group.bl-unpaired,
+.bl-unpaired-tr { border-color: #fca5a5; background: var(--danger-bg); }
+.bl-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 13px;
+  margin-bottom: 6px;
+  flex-wrap: wrap;
+}
+.bl-gid { font-family: var(--mono); color: var(--accent-dark); font-weight: 600; }
+.bl-env { margin-left: auto; font-family: var(--mono); color: var(--muted); font-size: 12px; }
+.bl-env.bl-bad { color: var(--danger); font-weight: 600; }
+.bl-pair { display: flex; gap: 12px; align-items: flex-start; }
+.bl-col { flex: 1 1 0; min-width: 0; }
+.bl-col h4, .bl-unpaired-tr h3 {
+  margin: 0 0 4px;
+  font-size: 12px;
+  color: var(--muted);
+  font-weight: 600;
+}
+.bl-col ul { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; }
+.bl-col li {
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 5px 8px;
+  background: #fff;
+  font-size: 12.5px;
+}
+.bl-col .bl-eid { font-family: var(--mono); color: var(--muted); margin-right: 8px; }
+.bl-col .tc { font-family: var(--mono); color: var(--muted); font-size: 11.5px; }
+.bl-col pre {
+  margin: 3px 0 0;
+  font-family: var(--mono);
+  font-size: 12.5px;
+  white-space: pre-wrap;
+  word-break: break-all;
+}
+.bl-unpaired-tr {
+  border-radius: 8px;
+  padding: 10px 12px;
+}
+
+@media (max-width: 960px) {
+  .bl-pair { flex-direction: column; }
+}

@@ -186,6 +186,37 @@
           <div class="ts-empty">设置每行列数与最多行数后，点击「生成排版建议」，在此逐条对照原文与建议。</div>
         </div>
       </section>
+
+      <!-- 7. 双语字幕合成 -->
+      <section class="card" id="bilingual-card">
+        <h2><span class="step">7</span> 双语字幕合成
+          <small>（在当前源 SRT 上导入译文 SRT，按两侧<strong>原始时间区间的正长度交集</strong>配对；端点相接不算，相交关系按传递性成组）</small>
+        </h2>
+        <div class="bl-controls">
+          <label class="file-btn">
+            选择译文 SRT 文件
+            <input type="file" id="bl-file" accept=".srt,.txt">
+          </label>
+          <button id="bl-clear" class="btn secondary" disabled>✕ 清除译文与配对</button>
+          <button id="bl-export" class="btn primary" disabled>🌐 下载双语 SRT</button>
+          <span id="bl-status" class="status"></span>
+        </div>
+        <details class="paste-box">
+          <summary>或粘贴译文 SRT 文本</summary>
+          <textarea id="bl-paste" rows="7" spellcheck="false"
+            placeholder="1&#10;00:00:01,000 --> 00:00:03,000&#10;Translated text…"></textarea>
+          <button id="bl-parse" class="btn">导入粘贴的译文</button>
+        </details>
+        <p class="hint">
+          译文时间<strong>倒挂或重叠</strong>会被整份拒绝；每组双语条目正文为组内源文、译文各按原顺序换行拼接后上下排列，
+          时间取该组源字幕<strong>当前校准预览</strong>的最早开始与最晚结束（译文时间只参与配对）。
+          存在未配对条目、或预览存在冲突时禁止双语导出；锚点 / 锁定变化后分组预览自动同步。
+          重新导入源 SRT 会清空旧配对；普通导出、排版版导出与 <code>.stc</code> 工程均不受影响。
+        </p>
+        <div id="bl-list" class="bl-list">
+          <div class="bl-empty">先在第 1 步导入源 SRT，再在此导入对应译文 SRT，配对分组将按源字幕顺序展示在这里。</div>
+        </div>
+      </section>
     </div>
   </main>
 
@@ -196,6 +227,7 @@
   <script src="/static/audit-core.js"></script>
   <script src="/static/app.js"></script>
   <script src="/static/audit.js"></script>
-  <script src="/static/typeset.js"></script>
+  <script src="/static/typeset.js</script>
+  <script src="/static/bilingual.js"></script>
 </body>
 </html>
